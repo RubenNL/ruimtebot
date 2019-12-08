@@ -1,7 +1,9 @@
 debug={writeFile:false,consoleLog:false}
-request=require('request').defaults({jar:true,
+requestDefault=require('request')
+request=requestDefault.defaults({
+	jar: requestDefault.jar(),
 	headers:{
-		"User-Agent":"RubenReserveerBot"
+		"User-Agent":"Mozilla (github.com/RubenNL)"
 	}
 })
 $=require('cheerio')
@@ -44,6 +46,10 @@ function sendRequest(form,lokalen,personenId,telegramArguments,callback) {
 	request(options,function(err,res,body) {
 		if(debug.writeFile) fs.writeFileSync('login.html',body,'utf8')
 		body=$.load(body)
+		if(body('#errorMsg').text()=="Invalid User name or password. Please try again") {
+			callback({error:{message:"Gebruikersnaam/wachtwoord lijkt niet te kloppen"}})
+			return
+		}
 		form={}
 		body('form').find('input[type="hidden"]').each(function(key,item) {
 			item=$(item)
@@ -57,15 +63,20 @@ function sendRequest(form,lokalen,personenId,telegramArguments,callback) {
 		form['ctl00$Main$Time1$EndTimeList']=end.toString()
 		form['ctl00$Main$Time1$DurList']=duration.toString()
 		form['ctl00$Main$Date1$CollegeCalendar1$MonthsNavigation']=datum.format('1-M-YYYY 00:00:00')
+		form['ctl00$Main$Date1$CollegeCalendar1$calendarDateTextBox']=''
 		personen=personenList[personenId]
 		if(debug.consoleLog) console.log(personenId,personen)
 		form['ctl00$Main$Room1$ReqSize']=personen
 
 		form['ctl00$Main$ScriptManager1']="ctl00$Main$UpdatePanel2|ctl00$Main$Date1$CollegeCalendar1$theCalendar"
 		form['__EVENTTARGET']='ctl00$Main$Date1$CollegeCalendar1$theCalendar'
-		form['ctl00$Main$Date1$CollegeCalendar1$calendarDateTextBox']=''
 		form['']=''
-		form['__EVENTARGUMENT']=dagen.toString()
+		form['ctl00$Main$Room1$ZoneList']='*'
+		form['__SCROLLPOSITIONY']="0"
+		form['__SCROLLPOSITIONX']="0"
+		form['__LASTFOCUS']=''
+		form['__EVENTARGUMENT']=Math.floor(dagen).toString()
+		if(debug.consoleLog) console.log(73,form)
 		request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
 			form:form,
 			headers: {
@@ -177,6 +188,13 @@ function reserveLokaal(telegramArguments,callback) {
 		if(debug.consoleLog) console.log('got a request from before restart...',e)
 		return
 	}
+	while(personenList.indexOf(size)==-1) {
+		size--
+		if(size==0) {
+			console.log('size is 0?')
+			return false
+		}
+	}
 	if(!working) {
 		working=true
 		request('https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3dHeidelberglaan_B%26ApplicationName%3dWRB',function(err,res,body) {
@@ -208,7 +226,7 @@ function reserveLokaal(telegramArguments,callback) {
 				form['ctl00$Main$Time1$EndTimeList']=end.toString()
 				form['ctl00$Main$Time1$DurList']=duration.toString()
 				form['ctl00$Main$Date1$CollegeCalendar1$MonthsNavigation']=datum.format('1-M-YYYY 00:00:00')
-				form['ctl00$Main$Room1$ReqSize']=telegramArguments.size
+				form['ctl00$Main$Room1$ReqSize']=size
 				form['ctl00$Main$ScriptManager1']="ctl00$Main$UpdatePanel1|ctl00$Main$Room1$KnownRoomBtn"
 				form['__EVENTTARGET']='ctl00$Main$Room1$KnownRoomBtn'
 				form['ctl00$Main$Date1$CollegeCalendar1$calendarDateTextBox']=''
@@ -241,7 +259,7 @@ function reserveLokaal(telegramArguments,callback) {
 					if(debug.consoleLog) console.log(form)
 					form['ctl00$Main$ScriptManager1']="ctl00$Main$UpdatePanel2|ctl00$Main$Date1$CollegeCalendar1$theCalendar"
 					form['__EVENTTARGET']='ctl00$Main$Date1$CollegeCalendar1$theCalendar'
-					form['__EVENTARGUMENT']=dagen.toString()
+					form['__EVENTARGUMENT']=Math.floor(dagen).toString()
 					form['ctl00$Main$Date1$CollegeCalendar1$calendarDateTextBox']=''
 					request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
 						form:form,
@@ -347,12 +365,16 @@ http.createServer(function (req,res) {
 		if(data.callback_query) {
 			sendBotRequest('answerCallbackQuery',{callback_query_id:data.callback_query.id})
 			data.message={from:data.callback_query.from,chat:data.callback_query.message.chat}
+			if(!telegramOptions[data.message.from.id]) {
+				res.end(JSON.stringify({method:"sendMessage",chat_id:data.message.chat.id,text:'Sorry, er is iets mis gegaan. begin opnieuw.'}))
+				return
+			}
 			message=data.callback_query.data
 			parts=message.split(':')
 			part=parts.shift()
 			message=parts.join(':')
 			if(part=="dag") {
-				telegramOptions[data.message.from.id].datum=moment(message,'dd D-M')
+				telegramOptions[data.message.from.id].datum=moment(message,'do D-M','nl').add(5,'hours')
 				text='Kies een starttijd:'
 				options=startTimes.map(function (text){return {text:text,callback_data:'start:'+text}})
 				res.end(keyboardRequest(text,options))
@@ -379,6 +401,14 @@ http.createServer(function (req,res) {
 					sendBotRequest('sendChatAction',{chat_id:data.message.from.id,action:'typing'})
 					if(!aanvraag(options,function(lokalen) {
 						if(debug.consoleLog) console.log(lokalen)
+						if(lokalen.error) {
+							res.end(JSON.stringify({
+								method:'sendMessage',
+								chat_id:data.message.chat.id,
+								text:"Er is een fout opgetreden, begin opnieuw.("+lokalen.error.message+')'
+							}))
+							return
+						}
 						text='Selecteer je lokaal:'
 						options=[]
 						Object.keys(lokalen).forEach(function(lokaal) {
@@ -411,7 +441,7 @@ http.createServer(function (req,res) {
 						res.end(JSON.stringify({
 							method:'sendMessage',
 							chat_id:data.message.chat.id,
-							text:"Het bericht van de server:"+response
+							text:"Dit was het antwoord van ruimtereserveren.hu.nl:"+response+'\n\n\n. Om te controleren of je reservering is gelukt, en/of anuleren van de reservering, ga naar https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/myBookings.aspx'
 						}))
 					})) {
 						text="sorry, op dit moment is er iemand anders ook bezig met deze bot. klik op ja om opnieuw te proberen."
@@ -437,6 +467,10 @@ http.createServer(function (req,res) {
 					reply_markup:JSON.stringify({force_reply:true})
 				}))
 			} else if(data.message.reply_to_message.text=='Nu het wachtwoord') {
+				if(!telegramOptions[data.message.from.id]) {
+					res.end(JSON.stringify({method:"sendMessage",chat_id:data.message.chat.id,text:'Sorry, er is iets mis gegaan. begin opnieuw.'}))
+					return
+				}
 				telegramOptions[data.message.from.id].password=data.message.text
 				dagen=[]
 				options=[]
@@ -462,10 +496,17 @@ http.createServer(function (req,res) {
 		}
 	})
 }).listen(listenPort)
-sendBotRequest('setWebhook',{url:webhook})
 sendBotRequest('getMe',{},function(data) {
 	if(data.ok) {
 		botName=data.result.username
+		sendBotRequest('setWebhook',{url:webhook},function (data) {
+			if(data.ok) {
+				console.log("https://t.me/"+botName+' is gestart op '+webhook)
+			} else {
+				console.log('Er was een fout bij het ophalen van de webhook:',data)
+				process.exit()
+			}
+		})
 	} else {
 		console.log('pas de token in de config.json aan naar je eigen token.')
 		process.exit()
