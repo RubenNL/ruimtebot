@@ -1,3 +1,4 @@
+process.chdir(__dirname);
 debug={writeFile:false,consoleLog:false}
 requestDefault=require('request')
 request=requestDefault.defaults({
@@ -360,7 +361,7 @@ http.createServer(function (req,res) {
 	})
 	req.on('end',function () {
 		data=JSON.parse(json)
-		console.dir(data,{depth:null})
+		if(debug.consoleLog) console.dir(data,{depth:null})
 		res.writeHead(200,{'Content-Type': 'application/json'})
 		if(data.callback_query) {
 			sendBotRequest('answerCallbackQuery',{callback_query_id:data.callback_query.id})
