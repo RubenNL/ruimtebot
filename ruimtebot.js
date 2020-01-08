@@ -28,20 +28,21 @@ function sendRequest(form,lokalen,personenId,telegramArguments,callback) {
 		eindTijd=telegramArguments.eindTijd
 		size=telegramArguments.size
 		datum=telegramArguments.datum
+		vestiging=telegramArguments.vestiging
 	} catch(e) {
 		if(debug.consoleLog) console.log('got a request from before restart...',e)
 		return
 	}
 	if(form) {
 		options={
-			url:"https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3dHeidelberglaan_B%26ApplicationName%3dWRB",
+			url:"https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3d"+vestiging+"_B%26ApplicationName%3dWRB",
 			method: "POST",
 			form:form,
 			followAllRedirects:true
 		}
 	} else {
 		options={
-			url:"https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/default.aspx"
+			url:"https://www.ruimtereserveren.hu.nl/1920/"+vestiging+"_B/default.aspx"
 		}
 	}
 	request(options,function(err,res,body) {
@@ -78,13 +79,13 @@ function sendRequest(form,lokalen,personenId,telegramArguments,callback) {
 		form['__LASTFOCUS']=''
 		form['__EVENTARGUMENT']=Math.floor(dagen).toString()
 		if(debug.consoleLog) console.log(73,form)
-		request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
+		request.post('https://www.ruimtereserveren.hu.nl/1920/'+vestiging+'_B/Book.aspx',{
 			form:form,
 			headers: {
 				"X-MicrosoftAjax":"Delta=true",
 				"X-Requested-With":"XMLHttpRequest",
 				Origin:"https://www.ruimtereserveren.hu.nl",
-				Referer:"https://www.ruimtereserveren.hu.nl/Heidelberglaan_B/default.aspx"
+				Referer:"https://www.ruimtereserveren.hu.nl/"+vestiging+"_B/default.aspx"
 			}
 		},function(err,res,body) {
 			if(debug.writeFile) fs.writeFileSync('xhr.html',body,'utf8')
@@ -101,11 +102,11 @@ function sendRequest(form,lokalen,personenId,telegramArguments,callback) {
 			parts.forEach(function (part,id) {
 				if(selection.indexOf(part)>-1) form[part]=parts[id+1]
 			})
-			request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
+			request.post('https://www.ruimtereserveren.hu.nl/1920/'+vestiging+'_B/Book.aspx',{
 				form:form,
 				headers: {
 					Origin:"https://www.ruimtereserveren.hu.nl",
-					Referer:"https://www.ruimtereserveren.hu.nl/Heidelberglaan_B/default.aspx"
+					Referer:"https://www.ruimtereserveren.hu.nl/"+vestiging+"_B/default.aspx"
 				}
 			},function(err,res,body) {
 				if(debug.writeFile) fs.writeFileSync('book.html',body,'utf8')
@@ -134,8 +135,9 @@ function aanvraag(options,callback) {
 	if(!working) {
 		username=options.username
 		password=options.password
+		vestiging=options.vestiging
 		working=true
-		request('https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3dHeidelberglaan_B%26ApplicationName%3dWRB',function(err,res,body) {
+		request('https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3d'+vestiging+'_B%26ApplicationName%3dWRB',function(err,res,body) {
 			body=$.load(body)
 			form={}
 			body('form').find('input[type="hidden"]').each(function(key,item) {
@@ -178,6 +180,7 @@ function keyboardRequest(text,options,size) {
 }
 function reserveLokaal(telegramArguments,callback) {
 	try {
+        vestiging=telegramArguments.vestiging
 		startTijd=telegramArguments.startTijd
 		eindTijd=telegramArguments.eindTijd
 		size=telegramArguments.size
@@ -198,7 +201,7 @@ function reserveLokaal(telegramArguments,callback) {
 	}
 	if(!working) {
 		working=true
-		request('https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3dHeidelberglaan_B%26ApplicationName%3dWRB',function(err,res,body) {
+		request('https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3d'+vestiging+'_B%26ApplicationName%3dWRB',function(err,res,body) {
 			body=$.load(body)
 			form={}
 			body('form').find('input[type="hidden"]').each(function(key,item) {
@@ -208,7 +211,7 @@ function reserveLokaal(telegramArguments,callback) {
 			form['ctl00$ContentPlaceHolder1$user']=username
 			form['ctl00$ContentPlaceHolder1$password']=password
 			form['ctl00$ContentPlaceHolder1$logon']="logon"
-			request.post('https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3dHeidelberglaan_B%26ApplicationName%3dWRB',{form:form, followAllRedirects:true}, function(err,res,body) {
+			request.post('https://www.ruimtereserveren.hu.nl/Scientia/Portal/Login.aspx?ReturnUrl=Forward.aspx%3fSdbName%3d'+vestiging+'_B%26ApplicationName%3dWRB',{form:form, followAllRedirects:true}, function(err,res,body) {
 				if(debug.writeFile) fs.writeFileSync('login.html',body,'utf8')
 				form={}
 				body=$.load(body)
@@ -235,13 +238,13 @@ function reserveLokaal(telegramArguments,callback) {
 				form['__ASYNCPOST']='true'
 				form['__EVENTARGUMENT']=""
 				if(debug.consoleLog) console.log(form)
-				request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
+				request.post('https://www.ruimtereserveren.hu.nl/1920/'+vestiging+'_B/Book.aspx',{
 					form:form,
 					headers: {
 						"X-MicrosoftAjax":"Delta=true",
 						"X-Requested-With":"XMLHttpRequest",
 						Origin:"https://www.ruimtereserveren.hu.nl",
-						Referer:"https://www.ruimtereserveren.hu.nl/Heidelberglaan_B/default.aspx"
+						Referer:"https://www.ruimtereserveren.hu.nl/"+vestiging+"_B/default.aspx"
 					}
 				},function(err,res,body) {
 					if(debug.writeFile) fs.writeFileSync('lokaalList.html',body,'utf8')
@@ -262,13 +265,13 @@ function reserveLokaal(telegramArguments,callback) {
 					form['__EVENTTARGET']='ctl00$Main$Date1$CollegeCalendar1$theCalendar'
 					form['__EVENTARGUMENT']=Math.floor(dagen).toString()
 					form['ctl00$Main$Date1$CollegeCalendar1$calendarDateTextBox']=''
-					request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
+					request.post('https://www.ruimtereserveren.hu.nl/1920/'+vestiging+'_B/Book.aspx',{
 						form:form,
 						headers: {
 							"X-MicrosoftAjax":"Delta=true",
 							"X-Requested-With":"XMLHttpRequest",
 							Origin:"https://www.ruimtereserveren.hu.nl",
-							Referer:"https://www.ruimtereserveren.hu.nl/Heidelberglaan_B/default.aspx"
+							Referer:"https://www.ruimtereserveren.hu.nl/"+vestiging+"_B/default.aspx"
 						}
 					},function(err,res,body) {
 						if(debug.writeFile) fs.writeFileSync('xhr.html',body,'utf8')
@@ -286,11 +289,11 @@ function reserveLokaal(telegramArguments,callback) {
 						parts.forEach(function (part,id) {
 							if(selection.indexOf(part)>-1) form[part]=parts[id+1]
 						})
-						request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
+						request.post('https://www.ruimtereserveren.hu.nl/1920/'+vestiging+'_B/Book.aspx',{
 							form:form,
 							headers: {
 								Origin:"https://www.ruimtereserveren.hu.nl",
-								Referer:"https://www.ruimtereserveren.hu.nl/Heidelberglaan_B/default.aspx"
+								Referer:"https://www.ruimtereserveren.hu.nl/"+vestiging+"_B/default.aspx"
 							}
 						},function(err,res,body) {
 							if(debug.writeFile) fs.writeFileSync('book.html',body,'utf8')
@@ -310,11 +313,11 @@ function reserveLokaal(telegramArguments,callback) {
 							form['ctl00$Main$SelectOptionButton']="Volgende+>"
 							delete form['__LASTFOCUS']
 							if(debug.consoleLog) console.log(form)
-							request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
+							request.post('https://www.ruimtereserveren.hu.nl/1920/'+vestiging+'_B/Book.aspx',{
 								form:form,
 								headers: {
 									Origin:"https://www.ruimtereserveren.hu.nl",
-									Referer:"https://www.ruimtereserveren.hu.nl/Heidelberglaan_B/book.aspx"
+									Referer:"https://www.ruimtereserveren.hu.nl/"+vestiging+"_B/book.aspx"
 								}
 							},function (err,res,body) {
 								if(debug.writeFile) fs.writeFileSync('gegevens.html',body,'utf8')
@@ -327,11 +330,11 @@ function reserveLokaal(telegramArguments,callback) {
 								form['ctl00$Main$BookingForm1$tel']=''
 								form['ctl00$Main$BookingForm1$otherInf']="lokalenbot Deze reservering is gemaakt via t.me/"+botName
 								form['__EVENTTARGET']="ctl00$Main$MakeBookingBtn"
-								request.post('https://www.ruimtereserveren.hu.nl/1920/Heidelberglaan_B/Book.aspx',{
+								request.post('https://www.ruimtereserveren.hu.nl/1920/'+vestiging+'_B/Book.aspx',{
 									form:form,
 									headers: {
 										Origin:"https://www.ruimtereserveren.hu.nl",
-										Referer:"https://www.ruimtereserveren.hu.nl/Heidelberglaan_B/book.aspx"
+										Referer:"https://www.ruimtereserveren.hu.nl/"+vestiging+"_B/book.aspx"
 									}
 								},function(err,res,body) {
 									working=false
@@ -354,7 +357,7 @@ function sendBotRequest(method,params,callback) {
 		if(callback) {callback(JSON.parse(body))}
 	})
 }
-http.createServer(function (req,res) {
+server=http.createServer(function (req,res) {
 	json=''
 	req.on('data',function (chunk) {
 		json+=chunk
@@ -374,24 +377,40 @@ http.createServer(function (req,res) {
 			parts=message.split(':')
 			part=parts.shift()
 			message=parts.join(':')
-			if(part=="dag") {
+            if(part=="pers") {
+				telegramOptions[data.message.from.id].size=message
+				options=telegramOptions[data.message.from.id]
+				text="Dan nu, welke dag wil je reserveren?"
+				dagen=[]
+				options=[]
+				for(i=0;i<15;i++) {
+					dagen.push(moment().add(i,'day'))
+				}
+				dagen=dagen.forEach(function (dag) {
+					if(dag.format('d')==6||dag.format('d')==0) return
+					dag=dag.format('dd D-M')
+					options.push({text:dag,callback_data:"dag:"+dag})
+				})
+				if(debug.consoleLog) console.log(options)
+				res.end(keyboardRequest(text,options))
+			} else if(part=="dag") {
 				telegramOptions[data.message.from.id].datum=moment(message,'do D-M','nl').add(5,'hours')
 				text='Kies een starttijd:'
 				options=startTimes.map(function (text){return {text:text,callback_data:'start:'+text}})
 				res.end(keyboardRequest(text,options))
 			} else if(part=="start") {
 				telegramOptions[data.message.from.id].startTijd=message
+				text="Welke vestiging wil je reserveren?"
+				options=[{text:'Heidelberglaan',callback_data:'vestiging:Heidelberglaan'},{text:'Padualaan',callback_data:'vestiging:Padualaan'}]
+				res.end(keyboardRequest(text,options))
+			} else if(part=="vestiging") {
+				telegramOptions[data.message.from.id].vestiging=message
 				text='Kies een eindtijd:'
-				start=endTimes.indexOf(message)+1
+				start=endTimes.indexOf(telegramOptions[data.message.from.id].startTijd)+1
 				options=endTimes.slice(start,start+8).map(function (text){return {text:text,callback_data:"eind:"+text}})
 				res.end(keyboardRequest(text,options))
 			} else if(part=="eind") {
 				telegramOptions[data.message.from.id].eindTijd=message
-				text='kies een aantal personen:'
-				options=personenList.map(function (personen) {return {text:personen,callback_data:"pers:"+personen}})
-				res.end(keyboardRequest(text,options))
-			} else if(part=="pers") {
-				telegramOptions[data.message.from.id].size=message
 				options=telegramOptions[data.message.from.id]
 				text="is dit correct?\nDatum:"+options.datum.format('dddd D MMMM YYYY')+'\nbegin:'+options.startTijd+'\neind:'+options.eindTijd+'\npersonen:'+options.size
 				options=[{text:'ja',callback_data:'correct:ja'},{text:'nee',callback_data:'correct:nee'}]
@@ -473,18 +492,8 @@ http.createServer(function (req,res) {
 					return
 				}
 				telegramOptions[data.message.from.id].password=data.message.text
-				dagen=[]
-				options=[]
-				for(i=0;i<14;i++) {
-					dagen.push(moment().add(i,'day'))
-				}
-				dagen=dagen.forEach(function (dag) {
-					if(dag.format('d')==6||dag.format('d')==0) return
-					dag=dag.format('dd D-M')
-					options.push({text:dag,callback_data:"dag:"+dag})
-				})
-				if(debug.consoleLog) console.log(options)
-				text="Dan nu, welke dag wil je reserveren?"
+				text='kies een aantal personen:'
+				options=personenList.map(function (personen) {return {text:personen,callback_data:"pers:"+personen}})
 				res.end(keyboardRequest(text,options))
 			}
 		} else {
@@ -496,7 +505,14 @@ http.createServer(function (req,res) {
 			}))
 		}
 	})
-}).listen(listenPort)
+})
+server.listen(listenPort)
+exports.stop=function () { //Dit is voor een multi-server manager. source komt later op github.
+	server.close()
+}
+exports.listening=function () {
+	return server.listening
+}
 sendBotRequest('getMe',{},function(data) {
 	if(data.ok) {
 		botName=data.result.username

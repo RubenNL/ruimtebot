@@ -1,5 +1,5 @@
 # ruimtebot
-Ruimte reserveren bij de hogeschool utrecht, heidelberglaan, via Telegram.
+Ruimte reserveren bij de Hogeschool Utrecht, via Telegram.
 
 1. Open [https://telegram.me/botfather](https://telegram.me/botfather)
 1. Gebruik /newbot om een nieuwe bot aan te maken.
